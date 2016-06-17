@@ -37,8 +37,10 @@ import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
 import com.sun.jersey.api.client.filter.HTTPDigestAuthFilter;
 import com.sun.jersey.api.core.DefaultResourceConfig;
 import org.apache.curator.utils.CloseableUtils;
+import org.mortbay.jetty.Connector;
 import org.mortbay.jetty.Handler;
 import org.mortbay.jetty.Server;
+import org.mortbay.jetty.bio.SocketConnector;
 import org.mortbay.jetty.handler.ContextHandler;
 import org.mortbay.jetty.security.HashUserRealm;
 import org.mortbay.jetty.security.SecurityHandler;
@@ -124,7 +126,17 @@ public class ExhibitorMain implements Closeable
 
         DefaultResourceConfig   application = JerseySupport.newApplicationConfig(new UIContext(exhibitor));
         ServletContainer        container = new ServletContainer(application);
-        server = new Server(httpPort);
+
+        server = new Server();
+        Connector connector=new SocketConnector();
+        String bindLocal = System.getenv("EXHIBITOR_BIND_LOCAL");
+        if (Boolean.valueOf(bindLocal) || "1".equals(bindLocal)) {
+            log.info("EXHIBITOR_BIND_LOCAL set, binding to 127.0.0.1 only");
+            connector.setHost("127.0.0.1");
+        }
+        connector.setPort(httpPort);
+        server.setConnectors(new Connector[]{connector});
+
         Context root = new Context(server, "/", Context.SESSIONS);
         root.addFilter(ExhibitorServletFilter.class, "/", Handler.ALL);
         root.addServlet(new ServletHolder(container), "/*");
